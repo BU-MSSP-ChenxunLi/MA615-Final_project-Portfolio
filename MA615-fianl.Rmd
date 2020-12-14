@@ -1,0 +1,304 @@
+---
+title: "MA615-Fianl report"
+author: "ChenxunLi"
+date: "12/13/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(lubridate)
+library(bizdays)
+library(tidyquant)
+library(scales)
+library(data.table)
+library(dplyr)
+library(kableExtra)
+```
+
+
+## Assignment Description
+
+### Environment Description
+The COVID-19 pandemic has had a devastating effect on the economy in the United States. In early March 2020, the first knockdowns began and the stock market plunged. After this initial reaction, however, the market recovered. 
+
+In this project, I used online investment advice that was available at the beginning of July 2020 to make investment decisions and then track my investments through the fall until 1 December. 
+
+For this project, I assume an initial position of $250,000 in cash starting on 1 July 2020. And I ignored trading costs, taxes, and any other fees. Also, I ignored minimum investment requirements.
+
+### My Portfolio
+
+After referring to opinions from the internet, I find high tech companies have the advantage to overcome the hard time for following reasons:
+
+(1)flexible job system
+
+In COVID-19 pandemic period, many companies has the difficulty how to guarantee their employers to come to work. However, due to the flexible job time or place, high tech companies do not have this problem.
+
+(2)Higher demand
+
+In COVID-19 pandemic period, many people prefer to stay at home, so they spend more time on their phones or computers than before. So the high tech companies get more customers than before and can probably make more profits.
+
+So, I choose three great high tech companies, Microsoft(MSFT), Google(GOOG) and Amazon(AMZN) to track my portfolio.
+
+ 
+
+## EDA for stock price
+
+### Gain the Stock information
+
+```{r,message=FALSE}
+stock <- c("MSFT","GOOG","AMZN")
+#use 'tidyquant' to get price data
+stock_info <- stock %>% 
+  tq_get(get="stock.prices",from = "2020-07-01", to = "2020-12-01")
+
+#show the data
+head(stock_info,10)%>%
+  kbl()%>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  footnote(general = "The table above is part of the stock information we get.",
+           general_title = "Table 1: ")
+```
+
+### Summary table
+
+First, let's see the basic information about these three stocks.
+
+```{r,message=FALSE}
+#get the table
+stock_info_summary <- stock_info %>% 
+  dplyr::select(symbol,date,close) %>%
+  dplyr::group_by(symbol) %>%
+  srvyr::summarize(
+    'MIN'=min(close),
+    'MAX'=max(close),
+    'AVERAGE'=mean(close),
+    "RANGE"=max(close)-min(close),
+    "Std."=sd(close)
+  )
+stock_info_summary %>%
+  kbl()%>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  footnote(general = "The table above is the basic information of each stock.",
+           general_title = "Table 2: ")
+```
+From the table, we can see that the range of close price for AMZN is 652.75, for GOOG is 377.98, and for MSFT is 31.26. So, MSFT has a smallest range.
+
+Beside, we can also see that the standard value of close price for AMZN is 129.98(biggest), and GOOG as followed, the MSFT is 6.67(smallest).
+
+So, we can state that the MSFT is more stable than the other.
+
+### Dividend
+
+Next, we will check the dividend.
+
+```{r,message=FALSE,warning=FALSE}
+divs <- stock %>% 
+  tq_get(get="dividends",from = "2020-07-01", to = "2020-12-01")
+
+divs %>%
+  kbl()%>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  footnote(general = "The table above is the dividend of each stock.",
+           general_title = "Table 3: ")
+```
+
+As we can see, only MSFT has the dividend on 2020-08-19 and 2020-11-18.
+
+### Box plot
+
+Then, we visualize the information to explore more.
+
+```{r,message=FALSE,warning=FALSE}
+#data for msft
+stock_info_msft <- filter(stock_info,symbol=="MSFT")
+box_msft <- ggplot(stock_info_msft)+
+  geom_boxplot(aes(x=symbol,y=close),fill="red")+
+  geom_jitter(aes(x=symbol,y=close))+
+  ylab("Close Price")+
+  ggtitle("Box plot of MSFT")+
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+#data for goog
+stock_info_goog <- filter(stock_info,symbol=="GOOG")
+box_goog <- ggplot(stock_info_goog)+
+  geom_boxplot(aes(x=symbol,y=close),fill="yellow")+
+  geom_jitter(aes(x=symbol,y=close))+
+  ylab("Close Price")+
+  ggtitle("Box plot of GOOG")+
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+#data for amzn
+stock_info_amzn <- filter(stock_info,symbol=="AMZN")
+box_amzn <- ggplot(stock_info_amzn)+
+  geom_boxplot(aes(x=symbol,y=close),fill="skyblue")+
+  geom_jitter(aes(x=symbol,y=close))+
+  ylab("Close Price")+
+  ggtitle("Box plot of AMZN")+
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+ggpubr::ggarrange(box_msft,box_goog,box_amzn,ncol = 2,nrow = 2)
+
+
+```
+
+Through the box plot, we can still find that the MSFT is more stable than the other.
+
+### Close Price Curve
+
+Next, we visualize the movement of the close price
+
+```{r,message=FALSE,warning=FALSE}
+close_day <- ggplot(stock_info, aes(x=date,y=close,color=symbol))+
+  geom_line()+
+  geom_smooth(method = "lm")+
+  theme_tq()+
+  scale_color_tq()+
+  facet_wrap(~ symbol, ncol = 2, scales = "free_y")+
+  ggtitle("Close Price Curve for AMZN & GOOG & MSFT")+
+  labs(subtitle = "Date:2020/7/1-2020/12/1",x="Month",y="Close Price")
+  
+close_day
+
+```
+
+### Candlestick Chart
+
+The drawing method of Candlestick chart in the stock market and futures market contains four data, namely, the opening price, the highest price, the lowest price and the closing price. All Candlestick lines are developed around these four data, reflecting the general trend and price information.
+
+```{r}
+ggplot(stock_info,aes(x = date, y = close, group = symbol)) +
+    geom_candlestick(aes(open = open, high = high, low = low, close = close)) +
+    geom_ma(ma_fun = SMA, n = 15, color = "darkgreen", size = 1) +
+    labs(title = "Candlestick Chart for AMZN & GOOG & MSFT", 
+         subtitle = "Date:2020/7/1-2020/12/1",
+         y = "Closing Price", x = "Month") + 
+    facet_wrap(~ symbol, ncol = 2, scale = "free_y") +
+    theme_tq()
+
+```
+
+### Bar chart with BBands
+
+Bollinger Bands are used to visualize volatility by plotting a range around a moving average typically two standard deviations up and down. 
+
+Using the statistical principle, the standard deviation and trust interval of the stock price are calculated, so as to determine the fluctuation range and future trend of the stock price, and the wave band is used to show the safe price of the stock price
+
+```{r}
+ggplot(stock_info, aes(x = date, y = close, 
+               open = open, high = high, low = low, close = close, 
+               group = symbol)) +
+    geom_barchart() +
+    geom_bbands(ma_fun = SMA, sd = 2, n = 20, linetype = 3) +
+    labs(title = "Bar Chart with BBands for AMZN & GOOG & MSFT", 
+         subtitle = "Date:2020/7/1-2020/12/1",
+         y = "Closing Price", x = "Month") + 
+  coord_x_date(xlim = c("2020-08-01", "2020-11-30"))+
+    facet_wrap(~ symbol, ncol = 2, scales = "free_y") + 
+    theme_tq()
+
+
+
+```
+ 
+## Portfolio
+
+### My Portfolio
+
+1.Month Return Curve for each
+
+At first, I want to see the interest rate of each month for each stock.
+
+```{r}
+#get the data
+stock_return_month <- stock_info %>% 
+    group_by(symbol) %>%
+    tq_transmute(select     = adjusted, 
+                 mutate_fun = periodReturn, 
+                 period     = "monthly", 
+                 col_rename = "month_return")
+#plot
+ggplot(stock_return_month, aes(x = date, y = month_return, color = symbol)) + 
+    geom_line() +
+    theme_tq() +
+    scale_color_tq()+
+    ggtitle("Return rate Curve for AMZN & GOOG & MSFT")+
+    labs(subtitle = "Date:2020/7/1-2020/12/1",x="Month",y="Return rate")
+  
+```
+
+2.Choose proportion
+
+I think people will get more online shopping in COVID-19 pandemic period, so the price of Amazon will grow more. So, my portfolio includes 50% stock of Amazon, and the other is divided half and half, which is 25% for Google and 25% for Microsoft.
+
+
+```{r,message=FALSE,warning=FALSE}
+money <- 250000
+weight <- c(0.25,.25,.5)
+portfolio_renturn_month <- stock_return_month %>%
+    tq_portfolio(assets_col   = symbol, 
+                 returns_col  = month_return, 
+                 weights      = weight, 
+                 col_rename   = "portfolio_renturn",
+                 wealth.index = TRUE) %>%
+    dplyr::mutate(portfolio_renturn = portfolio_renturn * money)
+ 
+ggplot(portfolio_renturn_month,aes(x = date, y = portfolio_renturn)) +
+    geom_line(size = 1, color = "skyblue") +
+  geom_text(aes(label = round(portfolio_renturn)),nudge_x=0.1,nudge_y=0.1)+
+    labs(title = "Portfolio Value",
+         subtitle = "with 25% MSFT,25% GOOG,50% AMZN",
+         x = "Month", y = "Portfolio Value") +
+    geom_smooth(method = "loess") +
+    theme_tq() +
+    scale_color_tq() +
+    scale_y_continuous(labels = scales::dollar)
+
+```
+
+According to the plot, we can get about \$28000 at last, earning about \$3000.
+
+### Ajusted Portfolio
+
+Besides, I try other portfolio which has much more return than the first one. The portfolio contains 25% for MSFT, 50% for GOOG,and 25% for AMZN.
+
+```{r,message=FALSE,warning=FALSE}
+money <- 250000
+weight <- c(0.25,.5,.25)
+portfolio_renturn_month <- stock_return_month %>%
+    tq_portfolio(assets_col   = symbol, 
+                 returns_col  = month_return, 
+                 weights      = weight, 
+                 col_rename   = "portfolio_renturn",
+                 wealth.index = TRUE) %>%
+     dplyr::mutate(portfolio_renturn = portfolio_renturn * money)
+ 
+ggplot(portfolio_renturn_month,aes(x = date, y = portfolio_renturn)) +
+    geom_line(size = 1, color = "skyblue") +
+  geom_text(aes(label = round(portfolio_renturn)),nudge_x=0.1,nudge_y=0.1)+
+    labs(title = "Portfolio Value",
+         subtitle = "with 25% MSFT,50% GOOG,25% AMZN",
+         x = "Month", y = "Portfolio Value") +
+    geom_smooth(method = "loess") +
+    theme_tq() +
+    scale_color_tq() +
+    scale_y_continuous(labels = scales::dollar)
+
+```
+
+And we can find that in this portfolio we can gain more earnings than the first.
+
+## Reference
+
+1.https://cran.r-project.org/web/packages/tidyquant/vignettes/TQ04-charting-with-tidyquant.html
+
+2.https://shiny.rstudio.com/tutorial/written-tutorial/lesson3/
+
+3.https://www.fa-mag.com/financial-advisor-magazine/issues/2020/06
+
+4.https://www.thinkadvisor.com/investment-advisor/issue/investment-advisor-june-2020-1/
