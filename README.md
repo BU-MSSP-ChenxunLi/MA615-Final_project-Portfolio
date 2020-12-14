@@ -2,7 +2,7 @@
 
 The shiny application running on the bu-rstudio-connect.bu server is: https://bu-rstudio-connect.bu.edu/content/22
 
-The shiny runs slow, please wait to see more graphes~
+The shiny runs slow and I have several plots to run, so please wait to see more graphes~
 
 The final report is in the "MA615-final.pdf"
 
